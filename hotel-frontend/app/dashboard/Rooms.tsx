@@ -8,6 +8,7 @@ import { parseISO } from 'date-fns';
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { useAuth } from "@/components/AuthContext";
 import { toast } from 'sonner';
+import { uploadImage, getThumbnailUrl } from "@/lib/imageUpload";
 
 const AVAILABLE_AMENITIES = ["AC", "WiFi", "Hot Water", "Balcony", "Sea View", "Pool Access", "Breakfast Included", "TV", "Mini Bar", "Room Service"];
 
@@ -16,6 +17,7 @@ export default function RoomsManagement() {
   const [showModal, setShowModal] = useState(false);
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
 
@@ -106,16 +108,19 @@ export default function RoomsManagement() {
     setShowModal(true);
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFormImages([...formImages, reader.result]);
-        }
-      };
-      reader.readAsDataURL(file);
+      setIsUploading(true);
+      try {
+        const { url } = await uploadImage(file);
+        setFormImages([...formImages, url]);
+        toast.success("Image uploaded successfully!");
+      } catch (error: any) {
+        toast.error(error.message || "Failed to upload image.");
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -271,8 +276,8 @@ export default function RoomsManagement() {
                 ) : (
                   <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-3 py-4 cursor-pointer hover:border-brand">
                     <Upload className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm text-slate-500">Choose file to add</span>
-                    <input type="file" onChange={handleFileChange} className="hidden text-xs" accept="image/*" />
+                    <span className="text-sm text-slate-500">{isUploading ? "Uploading..." : "Choose file to add"}</span>
+                    <input type="file" onChange={handleFileChange} className="hidden text-xs" accept="image/*" disabled={isUploading} />
                   </label>
                 )}
               </div>
@@ -281,7 +286,7 @@ export default function RoomsManagement() {
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   {formImages.map((img, idx) => (
                     <div key={idx} className="relative group aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                      <img src={img} className="w-full h-full object-cover" alt={`Preview ${idx + 1}`} />
+                      <img src={getThumbnailUrl(img)} className="w-full h-full object-cover" alt={`Preview ${idx + 1}`} loading="lazy" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button type="button" onClick={() => handleRemoveImage(idx)} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
                           <Trash2 className="w-4 h-4" />
@@ -559,7 +564,7 @@ export default function RoomsManagement() {
                 return (
                   <tr key={r._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-4 py-4">
-                      {r.imageUrl ? <img src={r.imageUrl} alt={r.name} className="w-16 h-12 rounded-lg object-cover" /> : <div className="w-16 h-12 rounded-lg bg-slate-100 flex items-center justify-center"><ImageIcon className="w-5 h-5 text-slate-400" /></div>}
+                      {r.imageUrl ? <img src={getThumbnailUrl(r.imageUrl)} alt={r.name} className="w-16 h-12 rounded-lg object-cover" loading="lazy" /> : <div className="w-16 h-12 rounded-lg bg-slate-100 flex items-center justify-center"><ImageIcon className="w-5 h-5 text-slate-400" /></div>}
                     </td>
                     <td className="px-4 py-4 font-semibold text-slate-900 dark:text-white">{r.name}</td>
                     <td className="px-4 py-4">

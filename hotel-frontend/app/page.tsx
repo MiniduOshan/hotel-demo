@@ -10,7 +10,6 @@ import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
 import { toast } from 'sonner';
 import { getCategories } from "@/lib/adminData";
-import { ALL_HOTELS } from "@/lib/hotelData";
 import { getSystemPackages } from "@/lib/packagesData";
 import OfferDetailsModal from "@/components/OfferDetailsModal";
 import { useAuth } from "@/components/AuthContext";
@@ -93,6 +92,19 @@ function HeroSection() {
     "98 Acres Resort",
   ];
 
+  const [loadedHotels, setLoadedHotels] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/hotels')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setLoadedHotels(data);
+        }
+      })
+      .catch(err => console.error("Error loading search suggestions:", err));
+  }, []);
+
   const getSearchResults = (query: string) => {
     const q = query.toLowerCase().trim();
     if (!q) {
@@ -100,16 +112,13 @@ function HeroSection() {
       return [
         { type: 'location' as const, name: 'Colombo', description: 'Colombo District, Sri Lanka', fillValue: 'Colombo' },
         { type: 'location' as const, name: 'Ella', description: 'Ella, Badulla District, Sri Lanka', fillValue: 'Ella' },
-        { type: 'hotel' as const, name: 'Marino Beach Colombo', description: 'Colombo, Colombo District, Sri Lanka', fillValue: 'Marino Beach Colombo' },
-        { type: 'hotel' as const, name: 'Heritance Kandalama', description: 'Kandalama, Dambulla, Sri Lanka', fillValue: 'Heritance Kandalama' },
-        { type: 'hotel' as const, name: '98 Acres Resort & Spa', description: 'Ella, Badulla District, Sri Lanka', fillValue: '98 Acres Resort & Spa' },
       ];
     }
 
     const results: { type: 'location' | 'hotel'; name: string; description: string; fillValue: string }[] = [];
 
     // 1. Match cities/districts
-    const cities = Array.from(new Set(ALL_HOTELS.map(h => h.location).filter(Boolean)));
+    const cities = Array.from(new Set(loadedHotels.map(h => h.city || h.location).filter(Boolean)));
     cities.forEach(city => {
       if (city.toLowerCase().includes(q)) {
         results.push({
@@ -128,18 +137,21 @@ function HeroSection() {
     });
 
     // 2. Match hotels
-    ALL_HOTELS.forEach(hotel => {
+    loadedHotels.forEach(hotel => {
+      const hName = hotel.propertyName || hotel.name || "";
+      const hLoc = hotel.city || hotel.location || "";
+      const hLocDetail = `${hotel.address || ""}, ${hLoc}`;
       if (
-        hotel.name.toLowerCase().includes(q) ||
-        hotel.location.toLowerCase().includes(q) ||
-        hotel.locationDetail.toLowerCase().includes(q)
+        hName.toLowerCase().includes(q) ||
+        hLoc.toLowerCase().includes(q) ||
+        hLocDetail.toLowerCase().includes(q)
       ) {
-        if (!results.some(r => r.type === 'hotel' && r.name === hotel.name)) {
+        if (!results.some(r => r.type === 'hotel' && r.name === hName)) {
           results.push({
             type: 'hotel',
-            name: hotel.name,
-            description: `${hotel.locationDetail}, Sri Lanka`,
-            fillValue: hotel.name
+            name: hName,
+            description: `${hLocDetail}, Sri Lanka`,
+            fillValue: hName
           });
         }
       }

@@ -10,7 +10,7 @@ import { format, addDays, startOfToday } from 'date-fns';
 import { DayPicker, DateRange } from 'react-day-picker';
 import 'react-day-picker/style.css';
 import { getFilterGroups, FilterGroup } from '@/lib/adminData';
-import { ALL_HOTELS as MOCK_HOTELS, Hotel } from '@/lib/hotelData';
+import { Hotel } from '@/lib/hotelData';
 import { useSavedHotels } from '@/lib/useSavedHotels';
 import dynamic from 'next/dynamic';
 const HotelMap = dynamic(() => import('@/components/Map'), { ssr: false });
@@ -86,7 +86,7 @@ function SearchResults() {
           owner: h.owner || ""
         }));
 
-        setHotels([...MOCK_HOTELS, ...mapped]);
+        setHotels(mapped);
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));

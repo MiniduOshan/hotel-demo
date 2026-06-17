@@ -6,13 +6,14 @@ import Link from "next/link";;
 import { Building2, Save, MapPin, Phone, Mail, Image as ImageIcon, Upload, Trash2, Edit, Check, Users, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { useAuth } from "@/components/AuthContext";
 import { toast } from 'sonner';
+import { uploadImage, getThumbnailUrl } from "@/lib/imageUpload";
 
 const AVAILABLE_HOTEL_AMENITIES = ["Free WiFi", "Swimming Pool", "Parking", "Restaurant", "Bar", "Spa", "Gym", "Room Service", "Airport Shuttle", "Beach Access"];
 
 export default function MyHotel() {
   const { user, activeRole, activeHotel, refreshHotels } = useAuth();
   const pathname = usePathname();
-    const location = { pathname, hash: typeof window !== 'undefined' ? window.location.hash : '' };;
+  const location = { pathname, hash: typeof window !== 'undefined' ? window.location.hash : '' };;
   const isStaffMode = location.hash === '#staff-management';
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,7 @@ export default function MyHotel() {
   const [directionsLink, setDirectionsLink] = useState("");
   const [email, setEmail] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [imageSourceMode, setImageSourceMode] = useState<'url' | 'file'>('url');
   const [currentImageUrl, setCurrentImageUrl] = useState("");
   const [amenities, setAmenities] = useState<string[]>([]);
@@ -185,17 +187,19 @@ export default function MyHotel() {
     }
   }, [isStaffMode, isCreatingNew]);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImages([...images, reader.result]);
-          toast.info("Image added. Click 'Save Changes' to apply.");
-        }
-      };
-      reader.readAsDataURL(file);
+      setIsUploading(true);
+      try {
+        const { url } = await uploadImage(file);
+        setImages([...images, url]);
+        toast.success("Image uploaded successfully! Click 'Save Changes' to apply.");
+      } catch (error: any) {
+        toast.error(error.message || "Failed to upload image.");
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -908,17 +912,17 @@ export default function MyHotel() {
                 ) : (
                   <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-3 py-4 cursor-pointer hover:border-brand">
                     <Upload className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm text-slate-500">Choose file to add</span>
-                    <input type="file" onChange={handleFileChange} className="hidden text-xs" accept="image/*" />
+                    <span className="text-sm text-slate-500">{isUploading ? "Uploading..." : "Choose file to add"}</span>
+                    <input type="file" onChange={handleFileChange} className="hidden text-xs" accept="image/*" disabled={isUploading} />
                   </label>
                 )}
               </div>
 
               {images.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3 mt-4">
-                  {images.map((img, idx) => (
+                   {images.map((img, idx) => (
                     <div key={idx} className="relative group aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                      <img src={img} className="w-full h-full object-cover" alt={`Preview ${idx + 1}`} referrerPolicy="no-referrer" />
+                      <img src={getThumbnailUrl(img)} className="w-full h-full object-cover" alt={`Preview ${idx + 1}`} loading="lazy" referrerPolicy="no-referrer" />
                       {(isEditing || isCreatingNew) && <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button type="button" onClick={() => handleRemoveImage(idx)} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
                           <Trash2 className="w-4 h-4" />
