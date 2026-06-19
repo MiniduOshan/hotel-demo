@@ -15,18 +15,7 @@ const statuses = [
   { name: "Cancelled", color: "bg-red-100 text-red-700" },
 ];
 
-const ROOMS_LIST = ["Deluxe Ocean View (101)", "Deluxe Ocean View (102)", "Standard Double (201)", "Standard Double (202)", "Executive Suite (301)"];
 
-const baseDate = startOfDay(new Date());
-
-export const MOCK_BOOKINGS = [
-  { id: 1, guest: 'John Smith', room: ROOMS_LIST[0], start: addDays(baseDate, 1), end: addDays(baseDate, 3), statusName: 'Confirmed', amount: "LKR 70,000" },
-  { id: 2, guest: 'Jane Doe', room: ROOMS_LIST[2], start: addDays(baseDate, 4), end: addDays(baseDate, 6), statusName: 'Pending', amount: "LKR 28,000" },
-  { id: 3, guest: 'Alice Brown', room: ROOMS_LIST[4], start: subDays(baseDate, 2), end: addDays(baseDate, 5), statusName: 'Checked In', amount: "LKR 120,000" },
-  { id: 4, guest: 'Bob Wilson', room: ROOMS_LIST[1], start: subDays(baseDate, 5), end: subDays(baseDate, 1), statusName: 'Checked Out', amount: "LKR 45,000" },
-  { id: 5, guest: 'Emma Davis', room: ROOMS_LIST[3], start: addDays(baseDate, 1), end: addDays(baseDate, 2), statusName: 'Cancelled', amount: "LKR 15,000" },
-  { id: 6, guest: 'Michael Scott', room: ROOMS_LIST[0], start: addDays(baseDate, 8), end: addDays(baseDate, 12), statusName: 'Pending', amount: "LKR 140,000" },
-];
 
 export default function Bookings() {
   const { user, activeRole, activeHotel } = useAuth();
@@ -39,7 +28,6 @@ export default function Bookings() {
   const [discountAmount, setDiscountAmount] = useState('');
 
   useEffect(() => {
-    const isMockAllowed = user?.email?.toLowerCase() === "partner@yme.lk";
     const headers: Record<string, string> = {
       "X-Owner-Email": user?.email || ""
     };
@@ -63,18 +51,10 @@ export default function Bookings() {
             guestEmail: b.guestEmail
           }));
         }
-
-        if (isMockAllowed) {
-          setBookings([...formattedData, ...MOCK_BOOKINGS]);
-        } else {
-          setBookings(formattedData);
-        }
+        setBookings(formattedData);
       })
       .catch(err => {
         console.error(err);
-        if (isMockAllowed) {
-          setBookings(MOCK_BOOKINGS);
-        }
       });
   }, [user?.email, activeHotel?._id]);
 

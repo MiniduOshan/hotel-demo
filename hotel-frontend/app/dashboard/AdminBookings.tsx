@@ -1,15 +1,7 @@
 "use client";
 
 import { BookOpen, Search, Filter, Calendar as CalendarIcon, Download } from 'lucide-react';
-import { useState } from 'react';
-
-const mockBookings = [
-  { id: 'BK-1001', guest: 'Kasun Perera', hotel: 'Sunil Resort', room: 'Deluxe Ocean View', checkIn: '2026-06-15', checkOut: '2026-06-18', status: 'Confirmed', amount: 'LKR 45,000' },
-  { id: 'BK-1002', guest: 'Nimal Fernando', hotel: 'Amal Villas', room: 'Private Villa', checkIn: '2026-06-20', checkOut: '2026-06-25', status: 'Pending', amount: 'LKR 120,000' },
-  { id: 'BK-1003', guest: 'Sarah Johnson', hotel: 'Grand Colombo', room: 'Executive Suite', checkIn: '2026-06-10', checkOut: '2026-06-12', status: 'Checked In', amount: 'LKR 85,000' },
-  { id: 'BK-1004', guest: 'David Smith', hotel: 'Kandy Hill Retreat', room: 'Standard Room', checkIn: '2026-06-01', checkOut: '2026-06-05', status: 'Checked Out', amount: 'LKR 30,000' },
-  { id: 'BK-1005', guest: 'Saman Kumara', hotel: 'Galle Fort Stay', room: 'Heritage Room', checkIn: '2026-07-01', checkOut: '2026-07-03', status: 'Cancelled', amount: 'LKR 25,000' },
-];
+import { useState, useEffect } from 'react';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -25,9 +17,36 @@ const getStatusColor = (status: string) => {
 export default function AdminBookings() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredBookings = mockBookings.filter(b => {
-    const matchesSearch = b.guest.toLowerCase().includes(searchTerm.toLowerCase()) || b.id.toLowerCase().includes(searchTerm.toLowerCase()) || b.hotel.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    fetch("/api/bookings")
+      .then(res => res.json())
+      .then(data => {
+        const mapped = (data || []).map((b: any) => ({
+          id: b._id || b.id,
+          guest: b.guestName || "Guest",
+          hotel: b.hotelName || "N/A",
+          room: b.items ? b.items.map((i: any) => `${i.name} (x${i.quantity})`).join(", ") : (b.roomName || "N/A"),
+          checkIn: b.checkIn ? b.checkIn.split('T')[0] : "N/A",
+          checkOut: b.checkOut ? b.checkOut.split('T')[0] : "N/A",
+          status: b.status || "Pending",
+          amount: b.amount || "N/A"
+        }));
+        setBookings(mapped);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  const filteredBookings = bookings.filter(b => {
+    const matchesSearch = b.guest.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          b.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          b.hotel.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -79,49 +98,53 @@ export default function AdminBookings() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-y border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="px-3 py-2 font-medium">Booking ID</th>
-                <th className="px-3 py-2 font-medium">Guest / Hotel</th>
-                <th className="px-3 py-2 font-medium">Room Type</th>
-                <th className="px-3 py-2 font-medium">Dates</th>
-                <th className="px-3 py-2 font-medium">Amount</th>
-                <th className="px-3 py-2 font-medium text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredBookings.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-3 py-4 font-mono font-medium text-slate-900 dark:text-white">{b.id}</td>
-                  <td className="px-3 py-4">
-                    <p className="font-semibold text-slate-900 dark:text-white">{b.guest}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{b.hotel}</p>
-                  </td>
-                  <td className="px-3 py-4 text-slate-600 dark:text-slate-400">{b.room}</td>
-                  <td className="px-3 py-4">
-                    <div className="text-slate-600 dark:text-slate-400 text-xs space-y-1">
-                      <div><span className="font-semibold">In:</span> {b.checkIn}</div>
-                      <div><span className="font-semibold">Out:</span> {b.checkOut}</div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 font-semibold text-slate-900 dark:text-white">{b.amount}</td>
-                  <td className="px-3 py-4 text-right">
-                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(b.status)}`}>
-                      {b.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {filteredBookings.length === 0 && (
+          {loading ? (
+            <div className="text-center py-8 text-slate-500">Loading system bookings...</div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-y border-slate-200 dark:border-slate-800">
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-slate-500">
-                    No bookings found matching your criteria.
-                  </td>
+                  <th className="px-3 py-2 font-medium">Booking ID</th>
+                  <th className="px-3 py-2 font-medium">Guest / Hotel</th>
+                  <th className="px-3 py-2 font-medium">Room Type</th>
+                  <th className="px-3 py-2 font-medium">Dates</th>
+                  <th className="px-3 py-2 font-medium">Amount</th>
+                  <th className="px-3 py-2 font-medium text-right">Status</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredBookings.map((b) => (
+                  <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-3 py-4 font-mono font-medium text-slate-900 dark:text-white">{b.id}</td>
+                    <td className="px-3 py-4">
+                      <p className="font-semibold text-slate-900 dark:text-white">{b.guest}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{b.hotel}</p>
+                    </td>
+                    <td className="px-3 py-4 text-slate-600 dark:text-slate-400">{b.room}</td>
+                    <td className="px-3 py-4">
+                      <div className="text-slate-600 dark:text-slate-400 text-xs space-y-1">
+                        <div><span className="font-semibold">In:</span> {b.checkIn}</div>
+                        <div><span className="font-semibold">Out:</span> {b.checkOut}</div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 font-semibold text-slate-900 dark:text-white">{b.amount}</td>
+                    <td className="px-3 py-4 text-right">
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(b.status)}`}>
+                        {b.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {filteredBookings.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-slate-500">
+                      No bookings found matching your criteria.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

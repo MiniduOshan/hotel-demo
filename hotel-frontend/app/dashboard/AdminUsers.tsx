@@ -1,25 +1,41 @@
 "use client";
 
-import { Users, Search, Filter, ShieldCheck, Mail, Ban, MoreVertical, Building } from 'lucide-react';
-import { useState } from 'react';
-import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
-import Link from "next/link";;
-
-// Mock data
-const mockUsers = [
-  { id: 1, name: 'Kasun Perera', email: 'kasun@example.com', role: 'Customer', status: 'Active', joined: '2023-11-12' },
-  { id: 2, name: 'Sunil Silva', email: 'sunil@hotel.lk', role: 'Hotel Owner', status: 'Active', joined: '2023-10-05', hotel: 'Sunil Resort' },
-  { id: 3, name: 'Nimal Fernando', email: 'nimal@example.com', role: 'Customer', status: 'Suspended', joined: '2024-01-22' },
-  { id: 4, name: 'Amal Perera', email: 'amal@villas.lk', role: 'Hotel Owner', status: 'Pending', joined: '2024-03-15', hotel: 'Amal Villas' },
-];
+import { Users, Search, Filter, ShieldCheck, Ban, Mail, MoreVertical, Building } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from "next/navigation";
 
 export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const filteredUsers = mockUsers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    fetch("/api/admin/users-list")
+      .then(res => res.json())
+      .then(data => {
+        const mapped = (data || []).map((u: any, idx: number) => ({
+          id: u.email || idx,
+          name: u.email ? u.email.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') : 'User',
+          email: u.email,
+          role: u.role || 'Hotel Owner',
+          status: 'Active',
+          joined: 'N/A',
+          hotel: u.totalHotels > 0 ? `Managed Properties (${u.totalHotels})` : undefined
+        }));
+        setUsers(mapped);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'All' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -65,84 +81,88 @@ export default function AdminUsers() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-y border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="px-3 py-2 font-medium">User Details</th>
-                <th className="px-3 py-2 font-medium">Role / Affiliation</th>
-                <th className="px-3 py-2 font-medium">Joined Date</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-3 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold">
-                        {user.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900 dark:text-white">{user.name}</p>
-                        <p className="text-xs text-slate-500">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-4">
-                    <div className="flex flex-col">
-                      <span className={`inline-flex items-center w-fit px-2 py-0.5 rounded text-xs font-semibold ${
-                        user.role === 'Hotel Owner' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
-                      }`}>
-                        {user.role}
-                      </span>
-                      {user.hotel && (
-                        <span className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                          <Building className="w-3 h-3" /> {user.hotel}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 text-slate-600 dark:text-slate-400">
-                    {user.joined}
-                  </td>
-                  <td className="px-3 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      user.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                      user.status === 'Pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
-                      'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
-                    }`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-3 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button 
-                        onClick={() => router.push(`/dashboard/communications?email=${encodeURIComponent(user.email)}`)}
-                        className="p-1.5 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors" 
-                        title="Send Email"
-                      >
-                        <Mail className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors" title={user.status === 'Suspended' ? 'Unsuspend' : 'Suspend'}>
-                        {user.status === 'Suspended' ? <ShieldCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                      </button>
-                      <button className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredUsers.length === 0 && (
+          {loading ? (
+            <div className="text-center py-8 text-slate-500">Loading platform users...</div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-y border-slate-200 dark:border-slate-800">
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
-                    No users found matching your criteria.
-                  </td>
+                  <th className="px-3 py-2 font-medium">User Details</th>
+                  <th className="px-3 py-2 font-medium">Role / Affiliation</th>
+                  <th className="px-3 py-2 font-medium">Joined Date</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium text-right">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-3 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold">
+                          {user.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 dark:text-white">{user.name}</p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="flex flex-col">
+                        <span className={`inline-flex items-center w-fit px-2 py-0.5 rounded text-xs font-semibold ${
+                          user.role === 'Hotel Owner' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                        }`}>
+                          {user.role}
+                        </span>
+                        {user.hotel && (
+                          <span className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                            <Building className="w-3 h-3" /> {user.hotel}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-slate-600 dark:text-slate-400">
+                      {user.joined}
+                    </td>
+                    <td className="px-3 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        user.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                        user.status === 'Pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
+                        'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
+                      }`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => router.push(`/dashboard/communications?email=${encodeURIComponent(user.email)}`)}
+                          className="p-1.5 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors" 
+                          title="Send Email"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </button>
+                        <button className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors" title={user.status === 'Suspended' ? 'Unsuspend' : 'Suspend'}>
+                          {user.status === 'Suspended' ? <Ban className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        </button>
+                        <button className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredUsers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
+                      No users found matching your criteria.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

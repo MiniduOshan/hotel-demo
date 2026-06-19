@@ -8,7 +8,6 @@ import TravelerDashboardHome from './TravelerDashboardHome';
 import AdminDashboardHome from './AdminDashboardHome';
 import { format } from 'date-fns';
 import { HotelDetailsModal } from "@/components/HotelDetailsModal";
-import { MOCK_BOOKINGS } from './Bookings';
 import PartnerStatusMessage from './PartnerStatusMessage';
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { useState, useEffect } from 'react';
@@ -162,53 +161,42 @@ export default function DashboardHome() {
     return <TravelerDashboardHome />;
   }
 
-  const isMockAllowed = user?.email?.toLowerCase() === "partner@yme.lk";
-
-  const allBookings = isMockAllowed ? [...dbBookings, ...MOCK_BOOKINGS] : dbBookings;
+  const allBookings = dbBookings;
   const recentBookings = allBookings.slice(0, 5);
 
   // Dynamic Metrics calculation
-  const totalBookingsVal = isMockAllowed ? "124" : String(allBookings.length);
-  const bookingsChangeVal = isMockAllowed ? "+12%" : (dbBookings.length > 0 ? "+100%" : "0%");
+  const totalBookingsVal = String(allBookings.length);
+  const bookingsChangeVal = dbBookings.length > 0 ? "+100%" : "0%";
 
   let revenueVal = "0";
   let revPercentage = "0%";
-  if (isMockAllowed) {
-    revenueVal = "2.4M";
-    revPercentage = "+18%";
-  } else {
-    let totalAmtNum = 0;
-    allBookings.forEach(b => {
-      if (b.statusName === 'Cancelled') return;
-      if (!b.amount) return;
-      const parsed = parseFloat(b.amount.replace(/[^0-9.]/g, ""));
-      if (!isNaN(parsed)) totalAmtNum += parsed;
-    });
+  let totalAmtNum = 0;
+  allBookings.forEach(b => {
+    if (b.statusName === 'Cancelled') return;
+    if (!b.amount) return;
+    const parsed = parseFloat(b.amount.replace(/[^0-9.]/g, ""));
+    if (!isNaN(parsed)) totalAmtNum += parsed;
+  });
 
-    if (totalAmtNum >= 1000000) {
-      revenueVal = (totalAmtNum / 1000000).toFixed(1) + "M";
-    } else {
-      revenueVal = totalAmtNum.toLocaleString();
-    }
-    revPercentage = totalAmtNum > 0 ? "+100%" : "0%";
+  if (totalAmtNum >= 1000000) {
+    revenueVal = (totalAmtNum / 1000000).toFixed(1) + "M";
+  } else {
+    revenueVal = totalAmtNum.toLocaleString();
   }
+  revPercentage = totalAmtNum > 0 ? "+100%" : "0%";
 
   let occupancyVal = "0%";
-  if (isMockAllowed) {
-    occupancyVal = "78%";
+  const activeBookings = allBookings.filter(b => b.statusName === 'Confirmed' || b.statusName === 'Checked In').length;
+  if (activeBookings > 0 && dbRooms.length > 0) {
+    const totalCapacity = dbRooms.reduce((sum, r) => sum + (r.qty * (r.capacity || 2)), 0);
+    occupancyVal = totalCapacity > 0 ? `${Math.min(100, Math.round((activeBookings / totalCapacity) * 100))}%` : "50%";
   } else {
-    const activeBookings = allBookings.filter(b => b.statusName === 'Confirmed' || b.statusName === 'Checked In').length;
-    if (activeBookings > 0 && dbRooms.length > 0) {
-      const totalCapacity = dbRooms.reduce((sum, r) => sum + (r.qty * (r.capacity || 2)), 0);
-      occupancyVal = totalCapacity > 0 ? `${Math.min(100, Math.round((activeBookings / totalCapacity) * 100))}%` : "50%";
-    } else {
-      occupancyVal = activeBookings > 0 ? "50%" : "0%";
-    }
+    occupancyVal = activeBookings > 0 ? "50%" : "0%";
   }
-  const occChangeVal = isMockAllowed ? "+5%" : "0%";
+  const occChangeVal = "0%";
 
-  const viewsVal = isMockAllowed ? "3,240" : "12";
-  const viewsChangeVal = isMockAllowed ? "+24%" : "0%";
+  const viewsVal = "12";
+  const viewsChangeVal = "0%";
 
   const stats = [
     { label: "Total Bookings", value: totalBookingsVal, change: bookingsChangeVal, icon: CalendarCheck, color: "text-blue-500 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-500/10" },
@@ -219,14 +207,7 @@ export default function DashboardHome() {
     ] : []),
   ];
 
-  const dashboardReviews = isMockAllowed
-    ? (dbReviews.length > 0
-      ? dbReviews.map(r => ({ name: r.guest, rating: r.score, text: r.text })).slice(0, 3)
-      : [
-        { name: "Sarah W.", rating: 5, text: "Amazing view and great staff!" },
-        { name: "David K.", rating: 4, text: "Good breakfast, room was clean." }
-      ])
-    : dbReviews.map(r => ({ name: r.guest, rating: r.score, text: r.text })).slice(0, 3);
+  const dashboardReviews = dbReviews.map(r => ({ name: r.guest, rating: r.score, text: r.text })).slice(0, 3);
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">

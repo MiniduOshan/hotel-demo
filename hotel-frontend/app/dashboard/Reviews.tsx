@@ -88,18 +88,15 @@ export default function Reviews() {
     setActiveReply(id);
     setReplyText("");
   };
-
-  const isMockAllowed = user?.email?.toLowerCase() === "partner@yme.lk";
-
   const calculateStats = () => {
     if (reviewsList.length === 0) {
       return {
-        avg: isMockAllowed ? "9.2" : "0.0",
-        label: isMockAllowed ? "Superb" : "No Reviews",
+        avg: "0.0",
+        label: "No Reviews",
         dist: [
-          { s: 5, w: isMockAllowed ? "w-[85%]" : "w-[0%]" },
-          { s: 4, w: isMockAllowed ? "w-[10%]" : "w-[0%]" },
-          { s: 3, w: isMockAllowed ? "w-[5%]" : "w-[0%]" },
+          { s: 5, w: "w-[0%]" },
+          { s: 4, w: "w-[0%]" },
+          { s: 3, w: "w-[0%]" },
           { s: 2, w: "w-[0%]" },
           { s: 1, w: "w-[0%]" }
         ]
