@@ -304,9 +304,9 @@ function DashboardHome() {
             My Properties
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {accessibleHotels.map(hotel => (
+            {accessibleHotels.map((hotel, index) => (
               <div
-                key={hotel._id}
+                key={hotel._id || index}
                 onClick={() => switchHotel(hotel._id)}
                 className={`relative group rounded-xl border p-4 cursor-pointer transition-all ${activeHotel?._id === hotel._id ? 'border-brand bg-brand/5 dark:bg-brand/10 shadow-sm ring-1 ring-brand' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-brand/50 hover:shadow-md'}`}
               >
