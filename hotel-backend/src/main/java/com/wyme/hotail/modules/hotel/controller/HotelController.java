@@ -4,9 +4,13 @@ import com.wyme.hotail.modules.hotel.entity.HotelProfile;
 import com.wyme.hotail.modules.hotel.entity.Room;
 import com.wyme.hotail.modules.hotel.entity.StaffMember;
 import com.wyme.hotail.modules.hotel.service.HotelService;
+import com.wyme.hotail.modules.auth.entity.UserAccount;
+import com.wyme.hotail.modules.auth.repository.UserAccountRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Optional;
+
 
 import java.util.List;
 import java.util.Map;
@@ -17,10 +21,13 @@ import java.util.UUID;
 public class HotelController {
 
     private final HotelService hotelService;
+    private final UserAccountRepository userAccountRepository;
 
-    public HotelController(HotelService hotelService) {
+    public HotelController(HotelService hotelService, UserAccountRepository userAccountRepository) {
         this.hotelService = hotelService;
+        this.userAccountRepository = userAccountRepository;
     }
+
 
     @GetMapping("/hotels")
     public ResponseEntity<List<HotelProfile>> getAllHotels() {
@@ -126,13 +133,16 @@ public class HotelController {
     }
 
     @GetMapping("/my-hotels")
-    public ResponseEntity<List<HotelProfile>> getMyHotels(@RequestHeader(value = "x-owner-email", required = false) String ownerEmail) {
+    public ResponseEntity<?> getMyHotels(@RequestHeader(value = "x-owner-email", required = false) String ownerEmail) {
         if (ownerEmail == null) return ResponseEntity.ok(List.of());
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified.");
+        }
         return ResponseEntity.ok(hotelService.getMyAccessibleHotels(ownerEmail));
     }
 
     @GetMapping("/hotel-profile")
-    public ResponseEntity<HotelProfile> getHotelProfile(
+    public ResponseEntity<?> getHotelProfile(
             @RequestHeader(value = "x-owner-email", required = false) String ownerEmail,
             @RequestHeader(value = "x-hotel-id", required = false) String hotelId,
             @RequestHeader(value = "x-hotel-name", required = false) String hotelName,
@@ -142,23 +152,32 @@ public class HotelController {
         if (hotelId != null && !hotelId.isEmpty()) {
             return ResponseEntity.ok(hotelService.getHotelById(UUID.fromString(hotelId)));
         }
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified.");
+        }
         
         HotelProfile profile = hotelService.getOrCreateHotelProfile(ownerEmail, hotelName, hotelCity, hotelPhone);
         return ResponseEntity.ok(profile);
     }
 
     @PostMapping("/hotel-profile")
-    public ResponseEntity<HotelProfile> createHotelProfile(
+    public ResponseEntity<?> createHotelProfile(
             @RequestHeader(value = "x-owner-email") String ownerEmail,
             @RequestBody HotelProfile profile) {
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified.");
+        }
         profile.setOwner(ownerEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(hotelService.saveHotelProfile(profile));
     }
 
     @PutMapping("/hotel-profile")
-    public ResponseEntity<HotelProfile> updateHotelProfile(
+    public ResponseEntity<?> updateHotelProfile(
             @RequestHeader(value = "x-owner-email") String ownerEmail,
             @RequestBody HotelProfile profile) {
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified.");
+        }
         profile.setOwner(ownerEmail);
         return ResponseEntity.ok(hotelService.updateHotelProfile(profile));
     }
@@ -168,6 +187,9 @@ public class HotelController {
         String ownerEmail = body.get("ownerEmail");
         String hotelName = body.get("hotelName");
         String city = body.get("city");
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified.");
+        }
         
         HotelProfile profile = hotelService.getOrCreateHotelProfile(ownerEmail, hotelName, city, "");
         profile.setVerified(true);
@@ -177,15 +199,31 @@ public class HotelController {
 
     @DeleteMapping("/hotel-account")
     public ResponseEntity<?> deleteHotelAccount(@RequestHeader("x-owner-email") String ownerEmail) {
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email not verified.");
+        }
         // Custom cascade deletes could be executed here if owner profiles need scrubbing
         return ResponseEntity.ok(Map.of("success", true));
     }
+
 
     @DeleteMapping("/hotels/{id}")
     public ResponseEntity<?> deleteHotel(
             @PathVariable("id") UUID id,
             @RequestHeader("x-owner-email") String ownerEmail) {
+        if (isNotVerifiedOwner(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         hotelService.deleteHotel(id, ownerEmail);
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    private boolean isNotVerifiedOwner(String ownerEmail) {
+        if (ownerEmail == null || ownerEmail.trim().isEmpty()) {
+            return false;
+        }
+        Optional<UserAccount> userOpt = userAccountRepository.findByEmailIgnoreCase(ownerEmail.trim().toLowerCase());
+        return userOpt.isPresent() && !userOpt.get().getVerified();
+    }
 }
+

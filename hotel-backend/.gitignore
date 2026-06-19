@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Database Migrations & Seeds
+**/src/main/resources/db/migration/
+*seed*
+
+

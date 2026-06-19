@@ -90,10 +90,8 @@ public class AuthController {
             user.setHotelCity(hotelCity);
             user.setHotelPhone(hotelPhone);
             user.setHotelStatus("pending");
-
-            // Also create a hotel profile immediately as pending
-            hotelService.getOrCreateHotelProfile(normalizedEmail, hotelName, hotelCity, hotelPhone);
         }
+
 
         userAccountRepository.save(user);
 
@@ -124,8 +122,20 @@ public class AuthController {
             user.setVerified(true);
             user.setVerificationCode(null);
             userAccountRepository.save(user);
+
+            // Create property profile only after verification is successful
+            if (user.getIsPartner()) {
+                hotelService.getOrCreateHotelProfile(
+                        user.getEmail(),
+                        user.getHotelName() != null ? user.getHotelName() : "My Property",
+                        user.getHotelCity() != null ? user.getHotelCity() : "Colombo",
+                        user.getHotelPhone() != null ? user.getHotelPhone() : ""
+                );
+            }
+
             return ResponseEntity.ok(Map.of("success", true, "message", "Email verified successfully"));
         }
+
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Invalid verification code"));
     }

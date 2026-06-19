@@ -86,3 +86,7 @@ docker-compose.override.yml
 postgres-data/
 
 /HotelsYMe
+
+# Database Migrations & Seeds
+**/src/main/resources/db/migration/
+*seed*
