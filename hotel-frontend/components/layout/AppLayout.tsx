@@ -27,9 +27,11 @@ function Navbar() {
   const location = { pathname };;
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialView, setAuthInitialView] = useState<"signin" | "signup">("signin");
+  const [authInitialIsPartner, setAuthInitialIsPartner] = useState<boolean>(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
 
   // Points badge animation state
   const prevPointsRef = useRef<number | undefined>(undefined);
@@ -67,11 +69,13 @@ function Navbar() {
 
   const handleSignInClick = () => {
     setAuthInitialView("signin");
+    setAuthInitialIsPartner(false);
     setIsAuthOpen(true);
   };
 
   const handleSignUpClick = () => {
     setAuthInitialView("signup");
+    setAuthInitialIsPartner(false);
     setIsAuthOpen(true);
   };
 
@@ -79,12 +83,14 @@ function Navbar() {
     if (!user) {
       e.preventDefault();
       setAuthInitialView("signup");
+      setAuthInitialIsPartner(true);
       setIsAuthOpen(true);
     } else if (!user.isPartner && !user.isStaff) {
       e.preventDefault();
       alert("Your account is registered as a traveler. Please register as a Hotel Partner to add listings.");
     }
   };
+
 
   return (
     <nav className="fixed top-0 inset-x-0 z-50 glass">
@@ -362,7 +368,9 @@ function Navbar() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         initialView={authInitialView}
+        initialIsPartner={authInitialIsPartner}
       />
+
     </nav>
   );
 }

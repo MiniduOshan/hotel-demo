@@ -2,6 +2,7 @@ package com.wyme.hotail.core.constants;
 
 public class SecurityConstants {
     public static final String[] PUBLIC_URLS = {
+        "/api/auth/**",
         "/api/debug/**",
         "/api/public-offers",
         "/api/hotels",
@@ -16,4 +17,5 @@ public class SecurityConstants {
         "/api/open-bid-requests",
         "/ws/**"
     };
+
 }

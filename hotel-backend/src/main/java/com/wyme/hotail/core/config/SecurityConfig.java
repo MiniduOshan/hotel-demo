@@ -2,6 +2,8 @@ package com.wyme.hotail.core.config;
 
 import com.wyme.hotail.core.constants.SecurityConstants;
 import com.wyme.hotail.core.security.TenantFilter;
+import com.wyme.hotail.core.security.JwtAuthenticationFilter;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -24,9 +26,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final TenantFilter tenantFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(TenantFilter tenantFilter) {
+    public SecurityConfig(TenantFilter tenantFilter, JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.tenantFilter = tenantFilter;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -39,10 +43,12 @@ public class SecurityConfig {
                 .requestMatchers(SecurityConstants.PUBLIC_URLS).permitAll()
                 .anyRequest().permitAll() // Allow all endpoints to handle their own business-level RBAC/checks as requested
             )
-            .addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

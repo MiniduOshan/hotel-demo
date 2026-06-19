@@ -34,4 +34,5 @@ server:
 
 jwt:
   secret: 9a2f982728d828d9c282b82e8218d281f28e28f28b28a28e282d8d82b28c2872f
-  expiration: 86400000 # 24 hours
+  expiration: 900000 # 15 minutes
+

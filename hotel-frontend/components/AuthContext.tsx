@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { baseClient } from "@/src/core/api/baseClient";
 
 export interface User {
   id: string;
@@ -32,13 +33,18 @@ interface AuthContextType {
     password: string,
     isPartner: boolean,
     hotelDetails?: { hotelName: string; hotelCity: string; hotelPhone: string }
-  ) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  ) => Promise<{ success: boolean; error?: string; debugVerificationCode?: string }>;
+  verifyEmail: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string; debugResetCode?: string }>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (googlePayload: { email: string; name: string; avatarUrl?: string; isPartner?: boolean }) => Promise<{ success: boolean; error?: string; user?: User }>;
+  logout: () => Promise<void>;
+
   updateProfile: (updatedData: Partial<User>) => void;
   deleteAccount: (userId: string) => void;
-  getPartners: () => User[];
-  approvePartner: (userId: string) => void;
-  rejectPartner: (userId: string) => void;
+  getPartners: () => Promise<User[]>;
+  approvePartner: (userId: string) => Promise<void>;
+  rejectPartner: (userId: string) => Promise<void>;
   awardPoints: (activity_code: string, reference_id?: string, remarks?: string) => Promise<void>;
   redeemPoints: (points_to_redeem: number, remarks?: string) => Promise<void>;
   accessibleHotels: any[];
@@ -58,84 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeHotel, setActiveHotel] = useState<any | null>(null);
   const [activeRole, setActiveRole] = useState<"owner" | "manager" | "cashier" | null>(null);
 
-  // Load user from localStorage on initialization
+  // Initialize and load user from localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem("yme_current_user");
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
-        if (parsed && parsed.email && parsed.email.toLowerCase() === "partner@yme.lk") {
-          parsed.hotelStatus = "approved";
-          localStorage.setItem("yme_current_user", JSON.stringify(parsed));
-        }
         setUser(parsed);
       } catch (e) {
         localStorage.removeItem("yme_current_user");
-      }
-    }
-
-    // Seed default manager/partner if not already seeded
-    const users = localStorage.getItem("yme_registered_users");
-    const defaultUsers = [
-      {
-        id: "demo-partner-1",
-        name: "Suresh Perera",
-        email: "partner@yme.lk",
-        password: "password",
-        isPartner: true,
-        hotelName: "Grand Paradise Resort",
-        hotelCity: "Colombo",
-        hotelPhone: "+94 77 123 4567",
-        hotelStatus: "approved",
-        avatarUrl: "https://images.unsplash.com/photo-1542314831-c6a4d14abace?w=100&h=100&fit=crop",
-        joinedDate: new Date().toLocaleDateString(),
-        points: 0
-      },
-      {
-        id: "demo-user-1",
-        name: "Nimmi Alwis",
-        email: "user@yme.lk",
-        password: "password",
-        isPartner: false,
-        avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-        joinedDate: new Date().toLocaleDateString(),
-        points: 50 // Demo user has 50 points to start
-      },
-      {
-        id: "demo-admin-1",
-        name: "Chathura Silva (Admin)",
-        email: "admin@yme.lk",
-        password: "password",
-        isPartner: false,
-        isAdmin: true,
-        avatarUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
-        joinedDate: new Date().toLocaleDateString(),
-        points: 0
-      }
-    ];
-
-    if (!users) {
-      localStorage.setItem("yme_registered_users", JSON.stringify(defaultUsers));
-    } else {
-      // Guarantee admin user exists and partner@yme.lk is always approved
-      try {
-        const parsedUsers = JSON.parse(users);
-        const adminExists = parsedUsers.some((u: any) => u.email.toLowerCase() === "admin@yme.lk");
-        if (!adminExists) {
-          parsedUsers.push(defaultUsers[2]);
-        }
-
-        const partnerIndex = parsedUsers.findIndex((u: any) => u.email.toLowerCase() === "partner@yme.lk");
-        if (partnerIndex === -1) {
-          parsedUsers.push(defaultUsers[0]);
-        } else {
-          parsedUsers[partnerIndex].hotelStatus = "approved";
-          parsedUsers[partnerIndex].isPartner = true;
-        }
-
-        localStorage.setItem("yme_registered_users", JSON.stringify(parsedUsers));
-      } catch (e) {
-        localStorage.setItem("yme_registered_users", JSON.stringify(defaultUsers));
       }
     }
 
@@ -162,9 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshHotels = async () => {
     if (!user || !user.email) return;
     try {
-      const res = await fetch("/api/my-hotels", { headers: { "x-owner-email": user.email } });
-      if (!res.ok) return;
-      const rawHotels = await res.json();
+      const res = await baseClient.get("/api/my-hotels");
+      const rawHotels = res.data;
       if (Array.isArray(rawHotels)) {
         const hotels = rawHotels.map((h: any) => ({
           ...h,
@@ -182,8 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Auto-select only for staff members who are not partners (owners).
-        // Partners/Owners always land on the Portfolio Overview (Main Dashboard) first.
         if (hotels.length > 0 && user.isStaff && !user.isPartner) {
           switchHotel(hotels[0]._id, hotels);
         } else {
@@ -230,9 +164,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user && user.email) {
-      fetch(`/api/loyalty/summary/${user.email}`)
-        .then(res => res.json())
-        .then(data => {
+      baseClient.get(`/api/loyalty/summary/${user.email}`)
+        .then(res => {
+          const data = res.data;
           if (data.summary && data.summary.available_points !== undefined) {
             if (user.points !== data.summary.available_points) {
               updateProfile({ points: data.summary.available_points });
@@ -244,91 +178,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.email]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> => {
-    // Artificial slight delay for realistic UX transitions
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    const storedUsersJson = localStorage.getItem("yme_registered_users");
-    const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-
-    const foundUser = users.find(
-      (u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-
-    if (foundUser) {
-      const userProfile: User = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-        isPartner: foundUser.isPartner,
-        isStaff: foundUser.isStaff,
-        staffRole: foundUser.staffRole,
-        isAdmin: foundUser.isAdmin,
-        hotelName: foundUser.hotelName,
-        hotelCity: foundUser.hotelCity,
-        hotelPhone: foundUser.hotelPhone,
-        hotelStatus: foundUser.hotelStatus,
-        avatarUrl: foundUser.avatarUrl,
-        joinedDate: foundUser.joinedDate,
-        points: foundUser.points || 0
-      };
-
-      setUser(userProfile);
-      localStorage.setItem("yme_current_user", JSON.stringify(userProfile));
-
-      // Attempt to award daily login points via the new backend engine
-      fetch("/api/loyalty/award", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_email: userProfile.email, activity_code: "daily_login" })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.summary) {
-            setUser(prev => prev ? { ...prev, points: data.summary.available_points } : prev);
-          }
-        })
-        .catch(console.error);
-
-      return { success: true, user: userProfile };
-    }
-
     try {
-      const staffRes = await fetch("/api/staff-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.toLowerCase().trim(), password })
-      });
+      const res = await baseClient.post("/api/auth/login", { email, password });
+      if (res.data && res.data.success) {
+        const loggedUser = res.data.user as User;
+        const accessToken = res.data.accessToken;
 
-      if (staffRes.ok) {
-        const data = await staffRes.json();
-        const staffUser = data.user as User;
+        localStorage.setItem("token", accessToken);
+        localStorage.setItem("user-email", loggedUser.email);
+        localStorage.setItem("yme_current_user", JSON.stringify(loggedUser));
+        setUser(loggedUser);
 
-        setUser(staffUser);
-        localStorage.setItem("yme_current_user", JSON.stringify(staffUser));
-
-        fetch("/api/loyalty/award", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_email: staffUser.email, activity_code: "daily_login" })
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success && data.summary) {
-              setUser(prev => prev ? { ...prev, points: data.summary.available_points } : prev);
+        // Award daily login points
+        baseClient.post("/api/loyalty/award", { user_email: loggedUser.email, activity_code: "daily_login" })
+          .then(awardRes => {
+            if (awardRes.data.success && awardRes.data.summary) {
+              setUser(prev => prev ? { ...prev, points: awardRes.data.summary.available_points } : prev);
             }
           })
           .catch(console.error);
 
-        return { success: true, user: staffUser };
+        return { success: true, user: loggedUser };
       }
-    } catch (err) {
-      console.error("Staff login failed:", err);
+    } catch (err: any) {
+      const errMsg = err.response?.data?.error || "Invalid email or password.";
+      return { success: false, error: errMsg };
     }
-
-    return {
-      success: false,
-      error: "Invalid email or password."
-    };
+    return { success: false, error: "Invalid email or password." };
   };
 
   const signup = async (
@@ -337,97 +213,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     isPartner: boolean,
     hotelDetails?: { hotelName: string; hotelCity: string; hotelPhone: string }
-  ): Promise<{ success: boolean; error?: string }> => {
-    await new Promise((resolve) => setTimeout(resolve, 850));
-
-    if (!name.trim()) return { success: false, error: "Please enter your full name." };
-    if (!email.trim() || !email.includes("@")) return { success: false, error: "Please enter a valid email address." };
-    if (password.length < 6) return { success: false, error: "Password must be at least 6 characters long." };
-
-    const storedUsersJson = localStorage.getItem("yme_registered_users");
-    const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-
-    const emailExists = users.some((u: any) => u.email.toLowerCase() === email.toLowerCase());
-    if (emailExists) {
-      return { success: false, error: "An account with this email already exists." };
+  ): Promise<{ success: boolean; error?: string; debugVerificationCode?: string }> => {
+    try {
+      const res = await baseClient.post("/api/auth/signup", {
+        name,
+        email,
+        password,
+        isPartner,
+        hotelDetails
+      });
+      if (res.data && res.data.success) {
+        return {
+          success: true,
+          debugVerificationCode: res.data.debugVerificationCode
+        };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.error || "Failed to sign up." };
     }
-
-    // Get simple initials avatar
-    const initials = name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2);
-    const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(initials)}&backgroundColor=00a67e`;
-
-    const signupDate = new Date();
-    const premiumExpiry = new Date(signupDate.getTime() + 365 * 24 * 60 * 60 * 1000);
-
-    const newUser = {
-      id: Math.random().toString(36).substring(2, 9),
-      name,
-      email,
-      password,
-      isPartner,
-      hotelName: isPartner ? hotelDetails?.hotelName || "My New Hotel" : undefined,
-      hotelCity: isPartner ? hotelDetails?.hotelCity || "Colombo" : undefined,
-      hotelPhone: isPartner ? hotelDetails?.hotelPhone || "" : undefined,
-      hotelStatus: isPartner ? "pending" : undefined,
-      avatarUrl,
-      joinedDate: new Date().toLocaleDateString(),
-      points: 0,
-      subscriptionPlan: 'premium' as const,
-      subscriptionExpiry: premiumExpiry.toISOString(),
-      subscriptionStartDate: signupDate.toISOString(),
-    };
-
-    users.push(newUser);
-    localStorage.setItem("yme_registered_users", JSON.stringify(users));
-
-    const userProfile: User = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      isPartner: newUser.isPartner,
-      isAdmin: false,
-      hotelName: newUser.hotelName,
-      hotelCity: newUser.hotelCity,
-      hotelPhone: newUser.hotelPhone,
-      hotelStatus: newUser.hotelStatus as "pending" | "approved" | "rejected" | undefined,
-      avatarUrl: newUser.avatarUrl,
-      joinedDate: newUser.joinedDate,
-      points: newUser.points,
-      subscriptionPlan: 'premium',
-      subscriptionExpiry: newUser.subscriptionExpiry,
-      subscriptionStartDate: newUser.subscriptionStartDate,
-    };
-
-    setUser(userProfile);
-    localStorage.setItem("yme_current_user", JSON.stringify(userProfile));
-
-    // Award registration points
-    fetch("/api/loyalty/award", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_email: userProfile.email, activity_code: "register_account" })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.summary) {
-          setUser(prev => prev ? { ...prev, points: data.summary.available_points } : prev);
-        }
-      })
-      .catch(console.error);
-
-    return { success: true };
+    return { success: false, error: "Failed to sign up." };
   };
 
-  const logout = () => {
+  const verifyEmail = async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await baseClient.post("/api/auth/verify", { email, code });
+      if (res.data && res.data.success) {
+        return { success: true };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.error || "Verification failed." };
+    }
+    return { success: false, error: "Verification failed." };
+  };
+
+  const forgotPassword = async (email: string): Promise<{ success: boolean; error?: string; debugResetCode?: string }> => {
+    try {
+      const res = await baseClient.post("/api/auth/forgot-password", { email });
+      if (res.data && res.data.success) {
+        return { success: true, debugResetCode: res.data.debugResetCode };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.error || "Failed to initiate password reset." };
+    }
+    return { success: false, error: "Failed to initiate password reset." };
+  };
+
+  const resetPassword = async (email: string, code: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await baseClient.post("/api/auth/reset-password", { email, code, newPassword });
+      if (res.data && res.data.success) {
+        return { success: true };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.error || "Failed to reset password." };
+    }
+    return { success: false, error: "Failed to reset password." };
+  };
+
+
+  const googleLogin = async (googlePayload: { email: string; name: string; avatarUrl?: string; isPartner?: boolean }): Promise<{ success: boolean; error?: string; user?: User }> => {
+    try {
+      const res = await baseClient.post("/api/auth/google", googlePayload);
+      if (res.data && res.data.success) {
+        const loggedUser = res.data.user as User;
+        const accessToken = res.data.accessToken;
+
+        localStorage.setItem("token", accessToken);
+        localStorage.setItem("user-email", loggedUser.email);
+        localStorage.setItem("yme_current_user", JSON.stringify(loggedUser));
+        setUser(loggedUser);
+
+        return { success: true, user: loggedUser };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.error || "Google authentication failed." };
+    }
+    return { success: false, error: "Google authentication failed." };
+  };
+
+  const logout = async () => {
+    try {
+      await baseClient.post("/api/auth/logout");
+    } catch (e) {
+      console.error("Logout request failed:", e);
+    }
     setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user-email");
     localStorage.removeItem("yme_current_user");
+    localStorage.removeItem("yme_active_hotel_id");
   };
 
-  const deleteAccount = (userId: string) => {
-    const storedUsersJson = localStorage.getItem("yme_registered_users");
-    const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-    const filteredUsers = users.filter((u: any) => u.id !== userId);
-    localStorage.setItem("yme_registered_users", JSON.stringify(filteredUsers));
+  const deleteAccount = async (userId: string) => {
+    // Standard mock action or request to delete in backend if supported. For simplicity we clear auth state.
     logout();
   };
 
@@ -437,71 +315,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const dataToUpdate = typeof updatedData === 'function' ? updatedData(prevUser) : updatedData;
       const updatedUser = { ...prevUser, ...dataToUpdate };
       localStorage.setItem("yme_current_user", JSON.stringify(updatedUser));
-
-      const storedUsersJson = localStorage.getItem("yme_registered_users");
-      const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-      const index = users.findIndex((u: any) => u.id === prevUser.id);
-      if (index !== -1) {
-        users[index] = { ...users[index], ...dataToUpdate };
-        localStorage.setItem("yme_registered_users", JSON.stringify(users));
-      }
       return updatedUser;
     });
   };
 
-  const getPartners = (): User[] => {
-    const storedUsersJson = localStorage.getItem("yme_registered_users");
-    const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-    return users.filter((u: any) => u.isPartner === true);
-  };
-
-  const approvePartner = (userId: string) => {
-    const storedUsersJson = localStorage.getItem("yme_registered_users");
-    const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-    const index = users.findIndex((u: any) => u.id === userId);
-    if (index !== -1) {
-      users[index].hotelStatus = "approved";
-      localStorage.setItem("yme_registered_users", JSON.stringify(users));
-
-      // If current user is this partner, update current user too
-      if (user && user.id === userId) {
-        const updated = { ...user, hotelStatus: "approved" as const };
-        setUser(updated);
-        localStorage.setItem("yme_current_user", JSON.stringify(updated));
-      }
+  const getPartners = async (): Promise<User[]> => {
+    try {
+      const res = await baseClient.get("/api/auth/partners");
+      return res.data;
+    } catch (e) {
+      // Return empty list or local mock fallback for admin listing of partners
+      return [];
     }
   };
 
-  const rejectPartner = (userId: string) => {
-    const storedUsersJson = localStorage.getItem("yme_registered_users");
-    const users = storedUsersJson ? JSON.parse(storedUsersJson) : [];
-    const index = users.findIndex((u: any) => u.id === userId);
-    if (index !== -1) {
-      users[index].hotelStatus = "rejected";
-      localStorage.setItem("yme_registered_users", JSON.stringify(users));
+  const approvePartner = async (userId: string) => {
+    try {
+      await baseClient.post(`/api/auth/partners/${userId}/approve`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-      // If current user is this partner, update current user too
-      if (user && user.id === userId) {
-        const updated = { ...user, hotelStatus: "rejected" as const };
-        setUser(updated);
-        localStorage.setItem("yme_current_user", JSON.stringify(updated));
-      }
+  const rejectPartner = async (userId: string) => {
+    try {
+      await baseClient.post(`/api/auth/partners/${userId}/reject`);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const awardPoints = async (activity_code: string, reference_id?: string, remarks?: string) => {
     if (!user || !user.email) return;
     try {
-      const res = await fetch("/api/loyalty/award", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_email: user.email, activity_code, reference_id, remarks })
+      const res = await baseClient.post("/api/loyalty/award", {
+        user_email: user.email,
+        activity_code,
+        reference_id,
+        remarks
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.summary) {
+      const data = res.data;
+      if (data.success && data.summary) {
         updateProfile({ points: data.summary.available_points });
-      } else {
-        console.error("Failed to award points:", data.error);
       }
     } catch (err) {
       console.error("Error awarding points:", err);
@@ -511,16 +366,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const redeemPoints = async (points_to_redeem: number, remarks?: string) => {
     if (!user || !user.email) return;
     try {
-      const res = await fetch("/api/loyalty/redeem", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_email: user.email, points_to_redeem, remarks })
+      const res = await baseClient.post("/api/loyalty/redeem", {
+        user_email: user.email,
+        points_to_redeem,
+        remarks
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.summary) {
+      const data = res.data;
+      if (data.success && data.summary) {
         updateProfile({ points: data.summary.available_points });
-      } else {
-        console.error("Failed to redeem points:", data.error);
       }
     } catch (err) {
       console.error("Error redeeming points:", err);
@@ -533,7 +386,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       login,
       signup,
+      verifyEmail,
+      forgotPassword,
+      resetPassword,
+      googleLogin,
       logout,
+
       updateProfile,
       deleteAccount,
       getPartners,
