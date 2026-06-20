@@ -100,6 +100,9 @@ public class HotelProfile extends BaseEntity implements TenantSupport {
     @Column(name = "policy")
     private List<String> policies = new ArrayList<>();
 
+    @Column(name = "detailed_amenities", columnDefinition = "TEXT")
+    private String detailedAmenities = "";
+
     @ElementCollection
     @CollectionTable(name = "hotel_images", joinColumns = @JoinColumn(name = "hotel_profile_id"))
     @Column(name = "image_url")

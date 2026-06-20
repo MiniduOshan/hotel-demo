@@ -210,9 +210,24 @@ function HotelDetails() {
   const [usePoints, setUsePoints] = useState(false);
   const [showMeals, setShowMeals] = useState(false);
 
-  const displayAmenities = (hotel?.amenities && hotel.amenities.length > 0)
-    ? [{ title: "Property Facilities", icon: CheckCircle2, items: hotel.amenities }, ...AMENITY_CATEGORIES.slice(0, 11)]
-    : AMENITY_CATEGORIES;
+  let displayAmenities = AMENITY_CATEGORIES;
+  if (hotel?.detailedAmenities && hotel.detailedAmenities !== "{}") {
+    try {
+      const detailed = JSON.parse(hotel.detailedAmenities);
+      displayAmenities = Object.keys(detailed).map(cat => {
+        const defaultCat = AMENITY_CATEGORIES.find(c => c.title === cat);
+        return {
+          title: cat,
+          icon: defaultCat?.icon || CheckCircle2,
+          items: detailed[cat]
+        };
+      }).filter(c => c.items.length > 0);
+    } catch (e) {
+      console.error("Failed to parse detailed amenities", e);
+    }
+  } else if (hotel?.amenities && hotel.amenities.length > 0) {
+    displayAmenities = [{ title: "Property Facilities", icon: CheckCircle2, items: hotel.amenities }, ...AMENITY_CATEGORIES.slice(0, 11)];
+  }
 
   // Fallback to default mock meals if the property hasn't configured any yet
   const mealsToShow = (hotel?.meals && hotel.meals.length > 0)
@@ -467,6 +482,10 @@ function HotelDetails() {
       return;
     }
     if (cart.length === 0) return;
+    if (!user) {
+      window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { view: 'signin' } }));
+      return;
+    }
     const toastId = toast.loading("Submitting booking request...");
     try {
       const basePrice = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);

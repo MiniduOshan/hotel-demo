@@ -67,6 +67,17 @@ function Navbar() {
     prevPointsRef.current = currentPoints;
   }, [user?.points]);
 
+  useEffect(() => {
+    const handleOpenAuthModal = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setAuthInitialView(customEvent.detail?.view || "signin");
+      setAuthInitialIsPartner(false);
+      setIsAuthOpen(true);
+    };
+    window.addEventListener("open-auth-modal", handleOpenAuthModal);
+    return () => window.removeEventListener("open-auth-modal", handleOpenAuthModal);
+  }, []);
+
   const handleSignInClick = () => {
     setAuthInitialView("signin");
     setAuthInitialIsPartner(false);
