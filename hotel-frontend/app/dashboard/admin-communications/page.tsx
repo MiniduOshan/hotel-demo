@@ -114,20 +114,8 @@ function AdminCommunications() {
         }
       }
     } catch (err) {
-      console.error("Failed to load users list from API, using fallback data", err);
+      console.error("Failed to load users list from API", err);
     }
-
-    // Fallback dummy data for demo
-    const dummyUsers: UserData[] = [
-      { email: "john.partner@example.com", role: "Hotel Owner", plan: "Free", verified: true, totalBookings: 8, totalHotels: 2 },
-      { email: "sarah.premium@hotels.com", role: "Hotel Owner", plan: "Premium", verified: true, totalBookings: 45, totalHotels: 5 },
-      { email: "new.hotelier@test.com", role: "Hotel Owner", plan: "Free", verified: false, totalBookings: 2, totalHotels: 1 },
-      { email: "guest.traveler@outlook.com", role: "Customer", plan: "None", verified: true, totalBookings: 12, totalHotels: 0 },
-      { email: "alice.wonder@gmail.com", role: "Customer", plan: "None", verified: false, totalBookings: 0, totalHotels: 0 },
-      { email: "bob.ross@art.com", role: "Customer", plan: "None", verified: true, totalBookings: 3, totalHotels: 0 },
-      { email: "enterprise.group@corp.com", role: "Hotel Owner", plan: "Enterprise", verified: true, totalBookings: 150, totalHotels: 12 }
-    ];
-    setUsers(dummyUsers);
     setLoading(false);
   };
 

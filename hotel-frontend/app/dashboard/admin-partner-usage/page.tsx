@@ -46,17 +46,8 @@ function AdminPartnerUsage() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch partner usages, using fallback data', err);
+      console.error('Failed to fetch partner usages', err);
     }
-
-    // Fallback dummy partners for demo
-    const dummyPartners: PartnerUsage[] = [
-      { _id: "1", email: "john.partner@example.com", plan: "Free", totalBookings: 8, totalHotels: 2, pendingCommission: 500, upgradeEmailSent: true },
-      { _id: "2", email: "sarah.premium@hotels.com", plan: "Premium", totalBookings: 45, totalHotels: 5, pendingCommission: 2800, upgradeEmailSent: false },
-      { _id: "3", email: "new.hotelier@test.com", plan: "Free", totalBookings: 2, totalHotels: 1, pendingCommission: 0, upgradeEmailSent: true },
-      { _id: "4", email: "enterprise.group@corp.com", plan: "Pro", totalBookings: 15, totalHotels: 4, pendingCommission: 2250, upgradeEmailSent: false }
-    ];
-    setPartners(dummyPartners);
     setLoading(false);
   };
 
@@ -119,13 +110,13 @@ function AdminPartnerUsage() {
                         {partner.totalBookings}
                       </td>
                       <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
-                        LKR {partner.pendingCommission.toLocaleString()}
+                        LKR {(partner.pendingCommission || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4">
                         {partner.plan !== 'Free' ? (
                           partner.upgradeEmailSent === false ? (
                             <span 
-                              onClick={() => router.push(`/dashboard/communications?email=${encodeURIComponent(partner.email)}&template=upgrade`)}
+                              onClick={() => router.push(`/dashboard/admin-communications?email=${encodeURIComponent(partner.email)}&template=upgrade`)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
                               title="Click to send upgrade notification"
                             >
@@ -144,7 +135,7 @@ function AdminPartnerUsage() {
                         <button
                           onClick={() => {
                             const templateQuery = partner.upgradeEmailSent === false ? '&template=upgrade' : '';
-                            router.push(`/dashboard/communications?email=${encodeURIComponent(partner.email)}${templateQuery}`);
+                            router.push(`/dashboard/admin-communications?email=${encodeURIComponent(partner.email)}${templateQuery}`);
                           }}
                           className="inline-flex items-center justify-center p-2 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors"
                           title="Compose message in Communications"

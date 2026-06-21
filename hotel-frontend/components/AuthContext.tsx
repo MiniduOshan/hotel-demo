@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { baseClient } from "@/src/core/api/baseClient";
 
 export interface User {
@@ -319,7 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const getPartners = async (): Promise<User[]> => {
+  const getPartners = useCallback(async (): Promise<User[]> => {
     try {
       const res = await baseClient.get("/api/auth/partners");
       return res.data;
@@ -327,7 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Return empty list or local mock fallback for admin listing of partners
       return [];
     }
-  };
+  }, []);
 
   const approvePartner = async (userId: string) => {
     try {

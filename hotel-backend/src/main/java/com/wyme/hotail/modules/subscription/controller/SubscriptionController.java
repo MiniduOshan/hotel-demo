@@ -3,6 +3,8 @@ package com.wyme.hotail.modules.subscription.controller;
 import com.wyme.hotail.modules.subscription.entity.PartnerProfile;
 import com.wyme.hotail.modules.subscription.entity.SystemPackage;
 import com.wyme.hotail.modules.subscription.service.SubscriptionService;
+import com.wyme.hotail.modules.notification.entity.SentMessageLog;
+import com.wyme.hotail.modules.notification.repository.SentMessageLogRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +18,11 @@ import java.util.UUID;
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
+    private final SentMessageLogRepository sentMessageLogRepository;
 
-    public SubscriptionController(SubscriptionService subscriptionService) {
+    public SubscriptionController(SubscriptionService subscriptionService, SentMessageLogRepository sentMessageLogRepository) {
         this.subscriptionService = subscriptionService;
+        this.sentMessageLogRepository = sentMessageLogRepository;
     }
 
     @GetMapping("/system-packages")
@@ -69,11 +73,37 @@ public class SubscriptionController {
 
     @PostMapping("/admin/bulk-message")
     public ResponseEntity<?> sendBulkMessage(@RequestBody Map<String, Object> body) {
-        return ResponseEntity.ok(Map.of("success", true, "count", 0, "message", "Bulk message logged"));
+        List<?> emails = (List<?>) body.get("emails");
+        int count = emails != null ? emails.size() : 0;
+        
+        SentMessageLog log = new SentMessageLog();
+        log.setTitle((String) body.get("title"));
+        log.setMessage((String) body.get("message"));
+        log.setType(body.containsKey("isHtml") ? "email" : "sms");
+        log.setAudienceSize(count);
+        log.setStatus("Success");
+        
+        sentMessageLogRepository.save(log);
+        
+        return ResponseEntity.ok(Map.of("success", true, "count", count, "message", "Bulk message logged"));
     }
 
     @PostMapping("/admin/send-partner-message")
     public ResponseEntity<?> sendPartnerMessage(@RequestBody Map<String, Object> body) {
+        SentMessageLog log = new SentMessageLog();
+        log.setTitle((String) body.getOrDefault("title", "Direct Message"));
+        log.setMessage((String) body.get("message"));
+        log.setType("email");
+        log.setAudienceSize(1);
+        log.setStatus("Success");
+        
+        sentMessageLogRepository.save(log);
+
         return ResponseEntity.ok(Map.of("success", true, "message", "Message sent successfully"));
+    }
+
+    @GetMapping("/admin/message-history")
+    public ResponseEntity<List<SentMessageLog>> getMessageHistory() {
+        return ResponseEntity.ok(sentMessageLogRepository.findAllByOrderByCreatedAtDesc());
     }
 }

@@ -75,25 +75,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       category: 'Overview',
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: BarChart3 },
-        { name: 'Approvals', path: '/dashboard/approvals', icon: CheckSquare },
+        { name: 'Approvals', path: '/dashboard/admin-approvals', icon: CheckSquare },
       ]
     },
     {
       category: 'Management',
       items: [
-        { name: 'Users', path: '/dashboard/users', icon: Users },
+        { name: 'Users', path: '/dashboard/admin-users', icon: Users },
         { name: 'Bookings', path: '/dashboard/admin-bookings', icon: BookOpen },
-        { name: 'Site Content', path: '/dashboard/manage-site', icon: Compass },
+        { name: 'Site Content', path: '/dashboard/manage-site-data', icon: Compass },
         { name: 'News Updates', path: '/dashboard/news-updates', icon: Newspaper },
       ]
     },
     {
       category: 'System',
       items: [
-        { name: 'Communications', path: '/dashboard/communications', icon: Mail },
-        { name: 'Price Plans', path: '/dashboard/price-plans', icon: CreditCard },
-        { name: 'Plan Usages', path: '/dashboard/partner-usages', icon: Users },
-        { name: 'Loyalty System', path: '/dashboard/loyalty', icon: Star },
+        { name: 'Communications', path: '/dashboard/admin-communications', icon: Mail },
+        { name: 'Price Plans', path: '/dashboard/admin-price-plans', icon: CreditCard },
+        { name: 'Plan Usages', path: '/dashboard/admin-partner-usage', icon: Users },
+        { name: 'Loyalty System', path: '/dashboard/admin-loyalty', icon: Star },
         { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
         { name: 'Settings', path: '/dashboard/settings', icon: Settings },
       ]

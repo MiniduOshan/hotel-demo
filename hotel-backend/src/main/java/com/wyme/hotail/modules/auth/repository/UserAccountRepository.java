@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
     Optional<UserAccount> findByEmailIgnoreCase(String email);
+    java.util.List<UserAccount> findByIsPartnerTrue();
 }

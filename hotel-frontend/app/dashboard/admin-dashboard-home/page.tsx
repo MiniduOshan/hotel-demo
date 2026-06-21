@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthContext";
 import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";;
@@ -22,7 +23,11 @@ import {
 
 function AdminDashboardHome() {
     const { user, getPartners } = useAuth();
-    const partners = getPartners();
+    const [partners, setPartners] = useState<any[]>([]);
+
+    useEffect(() => {
+        getPartners().then(res => setPartners(res || []));
+    }, [getPartners]);
 
     const pendingCount = partners.filter(p => p.hotelStatus === 'pending').length;
     const approvedCount = partners.filter(p => p.hotelStatus === 'approved' || !p.hotelStatus).length;
@@ -36,11 +41,11 @@ function AdminDashboardHome() {
 
             {/* Admin Action Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                <Link href="/dashboard/users" className="bg-white dark:bg-slate-900 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] dark:shadow-none rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-brand">
+                <Link href="/dashboard/admin-users" className="bg-white dark:bg-slate-900 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] dark:shadow-none rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-brand">
                     <Users className="w-5 h-5" />
                     <span className="text-xs font-bold text-center">Manage Users</span>
                 </Link>
-                <Link href="/dashboard/communications" className="bg-white dark:bg-slate-900 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] dark:shadow-none rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-brand">
+                <Link href="/dashboard/admin-communications" className="bg-white dark:bg-slate-900 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] dark:shadow-none rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-brand">
                     <Mail className="w-5 h-5" />
                     <span className="text-xs font-bold text-center">Communications</span>
                 </Link>
@@ -48,7 +53,7 @@ function AdminDashboardHome() {
                     <BookOpen className="w-5 h-5" />
                     <span className="text-xs font-bold text-center">Bookings</span>
                 </Link>
-                <Link href="/dashboard/price-plans" className="bg-white dark:bg-slate-900 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] dark:shadow-none rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-brand">
+                <Link href="/dashboard/admin-price-plans" className="bg-white dark:bg-slate-900 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] dark:shadow-none rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-brand">
                     <CreditCard className="w-5 h-5" />
                     <span className="text-xs font-bold text-center">Price Plans</span>
                 </Link>
@@ -136,7 +141,7 @@ function AdminDashboardHome() {
                                         <span className="text-xs text-slate-400">{p.hotelCity} • Owned by {p.name}</span>
                                     </div>
                                 </div>
-                                <Link href="/dashboard/approvals" className="p-1 px-3 text-xs font-bold text-brand border border-brand/20 hover:bg-brand hover:text-white rounded-lg transition-all">
+                                <Link href="/dashboard/admin-approvals" className="p-1 px-3 text-xs font-bold text-brand border border-brand/20 hover:bg-brand hover:text-white rounded-lg transition-all">
                                     Audit Details
                                 </Link>
                             </div>
@@ -151,7 +156,7 @@ function AdminDashboardHome() {
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 dark:border-slate-855 flex justify-end">
-                        <Link href="/dashboard/approvals" className="text-xs font-bold text-brand hover:underline flex items-center gap-1">
+                        <Link href="/dashboard/admin-approvals" className="text-xs font-bold text-brand hover:underline flex items-center gap-1">
                             Open Full Approvals Center <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
                     </div>

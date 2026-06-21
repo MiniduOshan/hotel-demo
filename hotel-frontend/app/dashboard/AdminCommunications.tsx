@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, MessageSquare, Send, Users, Filter, CheckSquare, Search, Copy, CheckCircle2 } from 'lucide-react';
+import { Mail, MessageSquare, Send, Users, Filter, CheckSquare, Search, Copy, CheckCircle2, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";;
@@ -58,8 +58,9 @@ const HTML_TEMPLATES = [
 ];
 
 export default function AdminCommunications() {
-  const [activeTab, setActiveTab] = useState<'email' | 'sms'>('email');
+  const [activeTab, setActiveTab] = useState<'email' | 'sms' | 'history'>('email');
   const [users, setUsers] = useState<UserData[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   
@@ -80,6 +81,12 @@ export default function AdminCommunications() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
@@ -114,21 +121,20 @@ export default function AdminCommunications() {
         }
       }
     } catch (err) {
-      console.error("Failed to load users list from API, using fallback data", err);
+      console.error("Failed to load users list from API", err);
     }
-
-    // Fallback dummy data for demo
-    const dummyUsers: UserData[] = [
-      { email: "john.partner@example.com", role: "Hotel Owner", plan: "Free", verified: true, totalBookings: 8, totalHotels: 2 },
-      { email: "sarah.premium@hotels.com", role: "Hotel Owner", plan: "Premium", verified: true, totalBookings: 45, totalHotels: 5 },
-      { email: "new.hotelier@test.com", role: "Hotel Owner", plan: "Free", verified: false, totalBookings: 2, totalHotels: 1 },
-      { email: "guest.traveler@outlook.com", role: "Customer", plan: "None", verified: true, totalBookings: 12, totalHotels: 0 },
-      { email: "alice.wonder@gmail.com", role: "Customer", plan: "None", verified: false, totalBookings: 0, totalHotels: 0 },
-      { email: "bob.ross@art.com", role: "Customer", plan: "None", verified: true, totalBookings: 3, totalHotels: 0 },
-      { email: "enterprise.group@corp.com", role: "Hotel Owner", plan: "Enterprise", verified: true, totalBookings: 150, totalHotels: 12 }
-    ];
-    setUsers(dummyUsers);
     setLoading(false);
+  };
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('/api/admin/message-history');
+      if (res.ok) {
+        setHistory(await res.json());
+      }
+    } catch (err) {
+      console.error("Failed to fetch history", err);
+    }
   };
 
   const filteredUsers = users.filter(u => {
@@ -299,6 +305,9 @@ export default function AdminCommunications() {
               <button onClick={() => setActiveTab('sms')} className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'sms' ? 'text-brand border-b-2 border-brand bg-white dark:bg-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>
                 <MessageSquare className="w-4 h-4" /> SMS Alert
               </button>
+              <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'history' ? 'text-brand border-b-2 border-brand bg-white dark:bg-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Clock className="w-4 h-4" /> History
+              </button>
             </div>
 
             <div className="p-5 space-y-4">
@@ -322,22 +331,25 @@ export default function AdminCommunications() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Message Body (HTML supported for Email)</label>
-                <textarea
-                  value={message}
-                  onChange={e => setMessage(e.target.value)}
-                  rows={activeTab === 'email' ? 10 : 4}
-                  placeholder={activeTab === 'email' ? "Type your email HTML/text here..." : "Type your SMS message here..."}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand resize-y text-sm font-mono"
-                ></textarea>
-              </div>
+              {activeTab !== 'history' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Message Body (HTML supported for Email)</label>
+                  <textarea
+                    value={message}
+                    onChange={e => setMessage(e.target.value)}
+                    rows={activeTab === 'email' ? 10 : 4}
+                    placeholder={activeTab === 'email' ? "Type your email HTML/text here..." : "Type your SMS message here..."}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand resize-y text-sm font-mono"
+                  ></textarea>
+                </div>
+              )}
 
-              <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+              {activeTab !== 'history' && (
+              <div className="flex justify-end pt-2">
                 <button 
                   onClick={handleSend}
                   disabled={sending || selectedEmails.size === 0}
-                  className="bg-brand hover:bg-brand-hover text-white px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand/90 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -347,6 +359,40 @@ export default function AdminCommunications() {
                   {sending ? 'Sending...' : 'Send Message'}
                 </button>
               </div>
+              )}
+
+              {activeTab === 'history' && (
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                  {history.length === 0 ? (
+                    <p className="text-sm text-slate-500 text-center py-8">No message history available.</p>
+                  ) : (
+                    history.map((item, idx) => (
+                      <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                            {item.type === 'email' ? <Mail className="w-4 h-4 text-brand" /> : <MessageSquare className="w-4 h-4 text-brand" />}
+                            {item.title}
+                          </h4>
+                          <span className="text-xs text-slate-500">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3 truncate">
+                          {item.message}
+                        </p>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-brand bg-brand/10 px-2 py-1 rounded">
+                            Sent to {item.audienceSize} recipients
+                          </span>
+                          <span className="text-emerald-600 font-bold bg-emerald-100 px-2 py-1 rounded">
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Search, Filter, ShieldCheck, Ban, Mail, MoreVertical, Building } from 'lucide-react';
+import { Users, Search, Filter, ShieldCheck, Ban, Mail, MoreVertical, Building, Trash2, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 
@@ -9,7 +9,26 @@ export default function AdminUsers() {
   const [roleFilter, setRoleFilter] = useState('All');
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const router = useRouter();
+
+  const toggleSuspend = (userId: string) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === 'Suspended' ? 'Active' : 'Suspended' } : u));
+  };
+
+  const deleteUser = (userId: string) => {
+    if (window.confirm("Are you sure you want to delete this user?")) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setOpenDropdown(null);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdown(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/users-list")
@@ -137,18 +156,40 @@ export default function AdminUsers() {
                     <td className="px-3 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
-                          onClick={() => router.push(`/dashboard/communications?email=${encodeURIComponent(user.email)}`)}
+                          onClick={() => router.push(`/dashboard/admin-communications?email=${encodeURIComponent(user.email)}`)}
                           className="p-1.5 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors" 
                           title="Send Email"
                         >
                           <Mail className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors" title={user.status === 'Suspended' ? 'Unsuspend' : 'Suspend'}>
-                          {user.status === 'Suspended' ? <Ban className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        <button 
+                          onClick={() => toggleSuspend(user.id)}
+                          className={`p-1.5 rounded-lg transition-colors ${user.status === 'Suspended' ? 'text-rose-500 bg-rose-500/10 hover:bg-rose-500/20' : 'text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'}`} 
+                          title={user.status === 'Suspended' ? 'Unsuspend' : 'Suspend'}
+                        >
+                          <Ban className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdown(openDropdown === user.id ? null : user.id);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {openDropdown === user.id && (
+                            <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-10">
+                              <button 
+                                onClick={() => deleteUser(user.id)}
+                                className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center gap-2"
+                              >
+                                <Trash2 className="w-4 h-4" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

@@ -32,8 +32,7 @@ function AdminApprovals() {
     const [selectedPartner, setSelectedPartner] = useState<User | null>(null);
 
     const reloadData = () => {
-        const list = getPartners();
-        setPartners(list);
+        getPartners().then(list => setPartners(list || []));
     };
 
     useEffect(() => {

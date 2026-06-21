@@ -404,6 +404,65 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("success", true, "message", "Logged out successfully"));
     }
 
+    @GetMapping("/partners")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> getPartners() {
+        List<UserAccount> partners = userAccountRepository.findByIsPartnerTrue();
+        List<Map<String, Object>> response = new ArrayList<>();
+        for (UserAccount user : partners) {
+            Map<String, Object> userProfile = new HashMap<>();
+            userProfile.put("id", user.getId() != null ? user.getId().toString() : "");
+            userProfile.put("name", user.getName());
+            userProfile.put("email", user.getEmail());
+            userProfile.put("isPartner", user.getIsPartner());
+            userProfile.put("isAdmin", user.getIsAdmin());
+            userProfile.put("hotelName", user.getHotelName());
+            userProfile.put("hotelCity", user.getHotelCity());
+            userProfile.put("hotelPhone", user.getHotelPhone());
+            userProfile.put("hotelStatus", user.getHotelStatus());
+            userProfile.put("avatarUrl", user.getAvatarUrl());
+            userProfile.put("joinedDate", user.getCreatedAt() != null ? user.getCreatedAt().toString() : "Today");
+            response.add(userProfile);
+        }
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/partners/{userId}/approve")
+    @Transactional
+    public ResponseEntity<?> approvePartner(@PathVariable String userId) {
+        try {
+            UUID id = UUID.fromString(userId);
+            Optional<UserAccount> userOpt = userAccountRepository.findById(id);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User not found"));
+            }
+            UserAccount user = userOpt.get();
+            user.setHotelStatus("approved");
+            userAccountRepository.save(user);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Partner approved"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid user ID"));
+        }
+    }
+
+    @PostMapping("/partners/{userId}/reject")
+    @Transactional
+    public ResponseEntity<?> rejectPartner(@PathVariable String userId) {
+        try {
+            UUID id = UUID.fromString(userId);
+            Optional<UserAccount> userOpt = userAccountRepository.findById(id);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User not found"));
+            }
+            UserAccount user = userOpt.get();
+            user.setHotelStatus("rejected");
+            userAccountRepository.save(user);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Partner rejected"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid user ID"));
+        }
+    }
+
     private String createAndSaveRefreshToken(String email) {
         refreshTokenRepository.deleteByUserEmail(email);
 

@@ -232,7 +232,7 @@ function Navbar() {
                         <div className="py-1 px-1">
                           {user.isAdmin ? (
                             <Link
-                              href="/dashboard/approvals"
+                              href="/dashboard/admin-approvals"
                               onClick={() => setShowDropdown(false)}
                               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                             >
